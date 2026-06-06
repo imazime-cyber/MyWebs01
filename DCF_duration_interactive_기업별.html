@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCF Duration 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f8f7f4;
+  --surface:#ffffff;
+  --surface2:#f2f1ee;
+  --border:#e4e2dc;
+  --border2:#d0cec6;
+  --text:#1a1916;
+  --muted:#6b6860;
+  --muted2:#9e9c98;
+  --accent:#c94c1e;
+  --accent-bg:#fdf1ec;
+  --amber:#b8720a;
+  --amber-bg:#fdf6e8;
+  --green:#1e7c4a;
+  --green-bg:#edf7f2;
+  --blue:#1a5fa8;
+  --blue-bg:#edf4fc;
+  --red:#b83232;
+  --red-bg:#fceaea;
+  --sans:'Inter',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --radius:8px;
+  --radius-lg:12px;
+}
+
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;padding:0}
+
+.page{max-width:900px;margin:0 auto;padding:40px 28px 60px}
+
+/* ── header ── */
+.header{margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+.header-eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+h1{font-size:22px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:8px}
+.header-sub{font-size:13px;color:var(--muted);line-height:1.65}
+
+/* ── two-col layout ── */
+.layout{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+@media(max-width:700px){.layout{grid-template-columns:1fr}}
+
+/* ── panels ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+.panel-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);margin-bottom:16px}
+
+/* ── presets ── */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:18px}
+.preset-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 10px;cursor:pointer;text-align:left;transition:all .15s}
+.preset-btn:hover{border-color:var(--border2);background:#eceae4}
+.preset-btn.active{border-color:var(--accent);background:var(--accent-bg)}
+.preset-ticker{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);display:block}
+.preset-name{font-size:10.5px;color:var(--muted);display:block;margin-top:1px}
+.preset-dur{font-family:var(--mono);font-size:10px;margin-top:4px;display:inline-block;padding:1px 6px;border-radius:3px}
+.dur-short{background:var(--green-bg);color:var(--green)}
+.dur-long{background:var(--amber-bg);color:var(--amber)}
+.dur-ultra{background:var(--red-bg);color:var(--red)}
+
+/* ── sliders / controls ── */
+.ctrl-group{margin-bottom:14px}
+.ctrl-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ctrl-label{font-size:12px;color:var(--muted);min-width:130px;flex-shrink:0}
+input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px var(--border2)}
+.ctrl-val{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);min-width:54px;text-align:right}
+
+.section-divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ── result cards ── */
+.result-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:580px){.result-cards{grid-template-columns:1fr}}
+.rcard{border:1px solid var(--border);border-radius:var(--radius);padding:14px 14px 12px;position:relative;overflow:hidden}
+.rcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.rcard.rc-green::before{background:var(--green)}
+.rcard.rc-amber::before{background:var(--amber)}
+.rcard.rc-red::before{background:var(--red)}
+.rcard-label{font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4}
+.rcard-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text);letter-spacing:-.02em}
+.rcard-delta{font-family:var(--mono);font-size:13px;font-weight:500;margin-top:3px}
+.rcard-dur{font-size:11px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+.rcard-dur span{font-family:var(--mono);font-weight:500;color:var(--text)}
+
+/* ── chart section ── */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:580px){.charts-row{grid-template-columns:1fr}}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.chart-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);margin-bottom:12px}
+.chart-wrap{position:relative;width:100%;height:180px}
+
+/* sensitivity table */
+.sens-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.sens-table th{font-weight:500;color:var(--muted);padding:5px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px}
+.sens-table th:first-child{text-align:left}
+.sens-table td{padding:5px 8px;text-align:right;font-family:var(--mono);font-size:11.5px;border-bottom:1px solid var(--border)}
+.sens-table td:first-child{text-align:left;color:var(--muted)}
+.sens-table tr:last-child td{border-bottom:none}
+.cell-red{color:var(--red);font-weight:500}
+.cell-amber{color:var(--amber)}
+.cell-green{color:var(--green)}
+
+/* bottom note */
+.note{font-size:11.5px;color:var(--muted2);line-height:1.65;padding:12px 14px;background:var(--surface2);border-radius:var(--radius);margin-top:10px;font-family:var(--mono)}
+
+/* footer */
+.footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted2);font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-eyebrow">DCF Duration Calculator · 2026.06.06 나스닥 급락 분석</div>
+    <h1>금리 충격과 Duration — 왜 고PER 주식이 더 많이 떨어지나</h1>
+    <div class="header-sub">할인율(r)이 오를 때, 현금흐름이 먼 미래에 집중된 종목일수록 주가 타격이 기하급수적으로 커집니다. 종목 프리셋을 선택하거나 파라미터를 직접 조정해 Duration 효과를 확인하세요.</div>
+  </div>
+
+  <div class="layout">
+
+    <!-- LEFT: controls -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">종목 프리셋</div>
+        <div class="preset-grid">
+          <button class="preset-btn" data-g1="3" data-g2="3" data-t="15" data-r="5" data-dr="0.7" data-cf="100" data-rp="0" onclick="applyPreset(this)">
+            <span class="preset-ticker">JPM</span>
+            <span class="preset-name">JP Morgan</span>
+            <span class="preset-dur dur-short">Short Dur.</span>
+          </button>
+          <button class="preset-btn" data-g1="4" data-g2="3" data-t="15" data-r="5" data-dr="0.7" data-cf="100" data-rp="0.5" onclick="applyPreset(this)">
+            <span class="preset-ticker">WMT</span>
+            <span class="preset-name">Walmart</span>
+            <span class="preset-dur dur-short">Short Dur.</span>
+          </button>
+          <button class="preset-btn" data-g1="14" data-g2="8" data-t="10" data-r="6" data-dr="0.7" data-cf="100" data-rp="1.5" onclick="applyPreset(this)">
+            <span class="preset-ticker">NVDA</span>
+            <span class="preset-name">Nvidia</span>
+            <span class="preset-dur dur-long">Long Dur.</span>
+          </button>
+          <button class="preset-btn" data-g1="12" data-g2="7" data-t="10" data-r="6" data-dr="0.7" data-cf="100" data-rp="1.5" onclick="applyPreset(this)">
+            <span class="preset-ticker">AVGO</span>
+            <span class="preset-name">Broadcom</span>
+            <span class="preset-dur dur-long">Long Dur.</span>
+          </button>
+          <button class="preset-btn" data-g1="20" data-g2="10" data-t="8" data-r="7" data-dr="0.7" data-cf="60" data-rp="2.5" onclick="applyPreset(this)">
+            <span class="preset-ticker">MU</span>
+            <span class="preset-name">Micron</span>
+            <span class="preset-dur dur-ultra">Ultra Dur.</span>
+          </button>
+          <button class="preset-btn" data-g1="25" data-g2="12" data-t="8" data-r="7.5" data-dr="0.7" data-cf="40" data-rp="3.0" onclick="applyPreset(this)">
+            <span class="preset-ticker">MRVL</span>
+            <span class="preset-name">Marvell Tech</span>
+            <span class="preset-dur dur-ultra">Ultra Dur.</span>
+          </button>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="panel-title">할인율 파라미터</div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-label">무위험수익률 rf</span>
+          <input type="range" id="rf" min="2" max="6" step="0.1" value="4.5">
+          <span class="ctrl-val" id="rf-out">4.5%</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">위험 프리미엄 rp</span>
+          <input type="range" id="rp" min="0" max="5" step="0.1" value="1.5">
+          <span class="ctrl-val" id="rp-out">+1.5%</span>
+        </div>
+        <div class="ctrl-row" style="padding:7px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+          <span class="ctrl-label" style="color:var(--text);font-weight:500">할인율 r = rf + rp</span>
+          <span style="flex:1"></span>
+          <span class="ctrl-val" id="r-total-out" style="color:var(--accent);font-size:14px">6.0%</span>
+        </div>
+        <div class="ctrl-row" style="margin-top:12px">
+          <span class="ctrl-label" style="color:var(--red)">금리 충격 +Δr</span>
+          <input type="range" id="dr" min="0.1" max="2.5" step="0.1" value="0.7">
+          <span class="ctrl-val" id="dr-out" style="color:var(--red)">+0.7%p</span>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="panel-title">성장률 파라미터 (2단계 모델)</div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-label">고성장 1기 g₁</span>
+          <input type="range" id="g1" min="0" max="30" step="0.5" value="14">
+          <span class="ctrl-val" id="g1-out">14.0%</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">고성장 기간 T년</span>
+          <input type="range" id="gT" min="3" max="20" step="1" value="10">
+          <span class="ctrl-val" id="gT-out">10년</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">영구성장률 g₂</span>
+          <input type="range" id="g2" min="0" max="10" step="0.5" value="8">
+          <span class="ctrl-val" id="g2-out">8.0%</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">초기 현금흐름 CF₁</span>
+          <input type="range" id="cf1" min="10" max="200" step="5" value="100">
+          <span class="ctrl-val" id="cf1-out">100</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: results -->
+    <div>
+
+      <div class="result-cards">
+        <div class="rcard rc-green" id="card-before">
+          <div class="rcard-label">충격 전 현재가치<br>(r = rf + rp)</div>
+          <div class="rcard-val" id="pv-before">—</div>
+          <div class="rcard-delta" id="pv-before-sub" style="color:var(--muted)">—</div>
+          <div class="rcard-dur">Macaulay Duration: <span id="dur-before">—</span>년</div>
+        </div>
+        <div class="rcard rc-red" id="card-after">
+          <div class="rcard-label">충격 후 현재가치<br>(r + Δr)</div>
+          <div class="rcard-val" id="pv-after">—</div>
+          <div class="rcard-delta" id="pv-delta">—</div>
+          <div class="rcard-dur">Modified Duration: <span id="dur-mod">—</span></div>
+        </div>
+        <div class="rcard rc-amber">
+          <div class="rcard-label">TV 비중<br>(잔존가치/총가치)</div>
+          <div class="rcard-val" id="tv-ratio">—</div>
+          <div class="rcard-delta" id="tv-note" style="color:var(--muted);font-family:var(--sans);font-size:11px;font-weight:400">—</div>
+          <div class="rcard-dur">예상 PER 근사: <span id="per-approx">—</span>x</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-title">연도별 CF 현재가치 분포</div>
+          <div class="chart-wrap"><canvas id="cfChart" role="img" aria-label="연도별 현금흐름 현재가치 분포 바차트">연도별 CF PV 분포</canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">금리 충격 전후 PV 변화</div>
+          <div class="chart-wrap"><canvas id="deltaChart" role="img" aria-label="충격 전후 PV 비교 바차트">충격 전후 PV 비교</canvas></div>
+        </div>
+      </div>
+
+      <!-- Sensitivity table -->
+      <div class="panel" style="padding:18px">
+        <div class="panel-title">민감도 분석 — Δr 변화에 따른 주가 하락률</div>
+        <table class="sens-table" id="sensTable">
+          <thead>
+            <tr>
+              <th>Δr</th>
+              <th>저PER (g=3%)</th>
+              <th>중PER (g=8%)</th>
+              <th>고PER (현재설정)</th>
+              <th>Duration 비교</th>
+            </tr>
+          </thead>
+          <tbody id="sensBody"></tbody>
+        </table>
+      </div>
+
+      <div class="note" id="model-note">모델 설명이 여기에 표시됩니다.</div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    DCF 2-Stage Growth Model · Macaulay Duration · 분석 기준일 2026.06.06 · Claude (Anthropic)
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── DCF engine ──────────────────────────────────────────────
+function computeDCF(r, g1, gT, g2, cf1, years) {
+  // 2-stage: phase1 = gT years at g1, phase2 = terminal at g2
+  const pvs = [];
+  let cf = cf1;
+  for (let t = 1; t <= years; t++) {
+    const g = t <= gT ? g1 : g2;
+    cf = (t === 1) ? cf1 : pvs.length > 0 ? cf * (1 + g) : cf1;
+    // recalculate cf cleanly
+    cf = t <= gT
+      ? cf1 * Math.pow(1 + g1, t - 1)
+      : cf1 * Math.pow(1 + g1, gT) * Math.pow(1 + g2, t - gT - 1);
+    pvs.push({ t, cf, pv: cf / Math.pow(1 + r, t) });
+  }
+  // terminal value at end of 'years'
+  const lastCF = cf1 * Math.pow(1 + g1, gT) * Math.pow(1 + g2, years - gT);
+  const tvCF = lastCF * (1 + g2);
+  const tv = (r > g2) ? tvCF / ((r - g2) * Math.pow(1 + r, years)) : 0;
+  const explicitPV = pvs.reduce((s, x) => s + x.pv, 0);
+  const totalPV = explicitPV + tv;
+  return { pvs, tv, explicitPV, totalPV };
+}
+
+function macaulayDuration(r, g1, gT, g2, cf1, years) {
+  const { pvs, tv, totalPV } = computeDCF(r, g1, gT, g2, cf1, years);
+  if (totalPV <= 0) return 0;
+  let wsum = pvs.reduce((s, x) => s + x.t * x.pv, 0);
+  wsum += years * tv;
+  return wsum / totalPV;
+}
+
+// ── Chart instances ──────────────────────────────────────────
+let cfChart = null, deltaChart = null;
+
+// ── Main update ─────────────────────────────────────────────
+function update() {
+  const rf  = parseFloat(document.getElementById('rf').value) / 100;
+  const rp  = parseFloat(document.getElementById('rp').value) / 100;
+  const dr  = parseFloat(document.getElementById('dr').value) / 100;
+  const g1  = parseFloat(document.getElementById('g1').value) / 100;
+  const gT  = parseInt(document.getElementById('gT').value);
+  const g2  = parseFloat(document.getElementById('g2').value) / 100;
+  const cf1 = parseFloat(document.getElementById('cf1').value);
+  const r   = rf + rp;
+
+  // update readouts
+  document.getElementById('rf-out').textContent     = (rf*100).toFixed(1) + '%';
+  document.getElementById('rp-out').textContent     = '+' + (rp*100).toFixed(1) + '%';
+  document.getElementById('r-total-out').textContent = r > 0 ? (r*100).toFixed(1) + '%' : '—';
+  document.getElementById('dr-out').textContent     = '+' + (dr*100).toFixed(1) + '%p';
+  document.getElementById('g1-out').textContent     = (g1*100).toFixed(1) + '%';
+  document.getElementById('gT-out').textContent     = gT + '년';
+  document.getElementById('g2-out').textContent     = (g2*100).toFixed(1) + '%';
+  document.getElementById('cf1-out').textContent    = cf1.toFixed(0);
+
+  const years = 30;
+  const guard = r > g2 + 0.005;
+
+  if (!guard) {
+    ['pv-before','pv-after','pv-delta','tv-ratio','dur-before','dur-mod','per-approx'].forEach(id => {
+      document.getElementById(id).textContent = 'r ≤ g₂';
+    });
+    return;
+  }
+
+  const base  = computeDCF(r,      g1, gT, g2, cf1, years);
+  const shock = computeDCF(r + dr, g1, gT, g2, cf1, years);
+  const durMac = macaulayDuration(r, g1, gT, g2, cf1, years);
+  const durMod = durMac / (1 + r);
+  const tvRatio = base.tv / base.totalPV;
+  const pctChg = (shock.totalPV - base.totalPV) / base.totalPV * 100;
+  const perApprox = base.totalPV / (cf1 * 5);  // rough: PV / ~5y avg earnings
+
+  // result cards
+  document.getElementById('pv-before').textContent = Math.round(base.totalPV).toLocaleString();
+  document.getElementById('pv-before-sub').textContent = 'Explicit: ' + Math.round(base.explicitPV).toLocaleString() + ' + TV: ' + Math.round(base.tv).toLocaleString();
+  document.getElementById('pv-after').textContent  = Math.round(shock.totalPV).toLocaleString();
+  const deltaEl = document.getElementById('pv-delta');
+  deltaEl.textContent = pctChg.toFixed(2) + '%';
+  deltaEl.style.color = pctChg < 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('tv-ratio').textContent  = (tvRatio * 100).toFixed(1) + '%';
+  document.getElementById('tv-note').textContent   = tvRatio > 0.7 ? '잔존가치 의존도 높음 → Ultra Duration' : tvRatio > 0.5 ? '잔존가치 의존도 중간 → Long Duration' : '잔존가치 의존도 낮음 → Short Duration';
+  document.getElementById('dur-before').textContent = durMac.toFixed(2);
+  document.getElementById('dur-mod').textContent    = durMod.toFixed(2) + ' (Δ1%p → −' + durMod.toFixed(1) + '%)';
+  document.getElementById('per-approx').textContent = perApprox.toFixed(1);
+
+  // ── CF distribution chart ──
+  const labels = base.pvs.map(x => x.t + '년');
+  const pvData = base.pvs.map(x => parseFloat(x.pv.toFixed(2)));
+  const tvBar = Array(years).fill(0);
+  tvBar[years - 1] = parseFloat(base.tv.toFixed(2));
+  const pvShock = shock.pvs.map(x => parseFloat(x.pv.toFixed(2)));
+
+  const explicitColor = 'rgba(26,95,168,0.65)';
+  const tvColor       = 'rgba(184,114,10,0.75)';
+
+  if (cfChart) {
+    cfChart.data.datasets[0].data = pvData;
+    cfChart.data.datasets[1].data = tvBar;
+    cfChart.update('none');
+  } else {
+    cfChart = new Chart(document.getElementById('cfChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'CF 현재가치', data: pvData, backgroundColor: explicitColor, borderWidth: 0, borderRadius: 2, stack: 's1' },
+          { label: '잔존가치(TV)', data: tvBar,  backgroundColor: tvColor,       borderWidth: 0, borderRadius: 2, stack: 's1' },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 11, family: 'Inter' }, color: '#6b6860', boxWidth: 10, padding: 12 } },
+          tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) } }
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: '#9e9c98', font: { size: 9, family: "'JetBrains Mono'" }, maxTicksLimit: 10 }, grid: { display: false } },
+          y: { stacked: true, ticks: { color: '#9e9c98', font: { size: 10, family: "'JetBrains Mono'" } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+  }
+
+  // ── Delta comparison chart ──
+  const comp3 = [
+    { label: 'JPM/WMT\n(g=3%)', g1: 0.03, g2: 0.03 },
+    { label: 'NVDA/AVGO\n(g=8%)', g1: 0.14, g2: 0.08 },
+    { label: '현재 설정', g1, g2 },
+    { label: 'MRVL\n(g=12%)', g1: 0.25, g2: 0.12 },
+  ];
+  const deltaLabels = comp3.map(c => c.label);
+  const deltaData   = comp3.map(c => {
+    if (r <= c.g2 + 0.005) return 0;
+    const b = computeDCF(r, c.g1, gT, c.g2, cf1, years);
+    const s = computeDCF(r + dr, c.g1, gT, c.g2, cf1, years);
+    return parseFloat(((s.totalPV - b.totalPV) / b.totalPV * 100).toFixed(2));
+  });
+  const dColors = deltaData.map(v =>
+    v < -20 ? '#b83232' : v < -12 ? '#c94c1e' : v < -6 ? '#b8720a' : '#1e7c4a'
+  );
+
+  if (deltaChart) {
+    deltaChart.data.datasets[0].data = deltaData;
+    deltaChart.data.datasets[0].backgroundColor = dColors;
+    deltaChart.update('none');
+  } else {
+    deltaChart = new Chart(document.getElementById('deltaChart'), {
+      type: 'bar',
+      data: {
+        labels: deltaLabels,
+        datasets: [{ label: '주가 변화율', data: deltaData, backgroundColor: dColors, borderWidth: 0, borderRadius: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y.toFixed(2) + '%' } }
+        },
+        scales: {
+          x: { ticks: { color: '#9e9c98', font: { size: 10, family: 'Inter' } }, grid: { display: false } },
+          y: { ticks: { color: '#9e9c98', font: { size: 10, family: "'JetBrains Mono'" }, callback: v => v + '%' }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+  }
+
+  // ── Sensitivity table ──
+  const drSteps = [0.25, 0.5, 0.7, 1.0, 1.5, 2.0];
+  const lowG = { g1: 0.03, g2: 0.03 };
+  const midG = { g1: 0.08, g2: 0.05 };
+  const tbody = document.getElementById('sensBody');
+  tbody.innerHTML = drSteps.map(drs => {
+    const rv = drs / 100;
+    const low = computeDCF(r, lowG.g1, gT, lowG.g2, cf1, years);
+    const lowS = computeDCF(r + rv, lowG.g1, gT, lowG.g2, cf1, years);
+    const lowPct = (lowS.totalPV - low.totalPV) / low.totalPV * 100;
+
+    const mid = computeDCF(r, midG.g1, gT, midG.g2, cf1, years);
+    const midS = computeDCF(r + rv, midG.g1, gT, midG.g2, cf1, years);
+    const midPct = (midS.totalPV - mid.totalPV) / mid.totalPV * 100;
+
+    const cur = computeDCF(r, g1, gT, g2, cf1, years);
+    const curS = computeDCF(r + rv, g1, gT, g2, cf1, years);
+    const curPct = (curS.totalPV - cur.totalPV) / cur.totalPV * 100;
+
+    const durL = macaulayDuration(r, lowG.g1, gT, lowG.g2, cf1, years);
+    const durC = macaulayDuration(r, g1, gT, g2, cf1, years);
+
+    const flag = drs === 0.7 ? ' style="background:#fdf6e8"' : '';
+    const cc = v => v < -20 ? 'cell-red' : v < -10 ? 'cell-amber' : 'cell-green';
+    return `<tr${flag}>
+      <td>+${drs.toFixed(2)}%p${drs===0.7?' ←':''}  </td>
+      <td class="${cc(lowPct)}">${lowPct.toFixed(1)}%</td>
+      <td class="${cc(midPct)}">${midPct.toFixed(1)}%</td>
+      <td class="${cc(curPct)}">${curPct.toFixed(1)}%</td>
+      <td style="color:var(--muted);font-size:11px">${durL.toFixed(1)}년 vs ${durC.toFixed(1)}년</td>
+    </tr>`;
+  }).join('');
+
+  // model note
+  document.getElementById('model-note').textContent =
+    `모델: 2단계 DCF — 1기 ${gT}년간 g₁=${(g1*100).toFixed(1)}%, 이후 영구성장 g₂=${(g2*100).toFixed(1)}%. ` +
+    `할인율 r=${(r*100).toFixed(1)}% (rf=${(rf*100).toFixed(1)}% + rp=${(rp*100).toFixed(1)}%). ` +
+    `Macaulay Duration ${durMac.toFixed(2)}년 → Modified Duration ${durMod.toFixed(2)} → ` +
+    `금리 1%p 충격 시 이론적 PV 변화 ≈ −${durMod.toFixed(1)}%. ` +
+    `잔존가치 비중 ${(tvRatio*100).toFixed(1)}% (높을수록 Duration↑, 금리 민감도↑).`;
+}
+
+// ── Preset apply ─────────────────────────────────────────────
+function applyPreset(btn) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const set = (id, val) => { document.getElementById(id).value = val; };
+  const rf = parseFloat(btn.dataset.r) - parseFloat(btn.dataset.rp);
+  set('rf', rf.toFixed(1));
+  set('rp', btn.dataset.rp);
+  set('dr', btn.dataset.dr);
+  set('g1', btn.dataset.g1);
+  set('gT', btn.dataset.t);
+  set('g2', btn.dataset.g2);
+  set('cf1', btn.dataset.cf);
+  update();
+}
+
+// ── Event listeners ──────────────────────────────────────────
+['rf','rp','dr','g1','gT','g2','cf1'].forEach(id => {
+  document.getElementById(id).addEventListener('input', update);
+});
+
+update();
+</script>
+</body>
+</html>
