@@ -1,0 +1,154 @@
+
+<style>
+.ctrl-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:var(--color-text-secondary); }
+.ctrl-row label { min-width:90px; }
+.ctrl-row span { min-width:44px; text-align:right; font-weight:500; color:var(--color-text-primary); font-size:13px; }
+.result-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+.rcard { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:12px 14px; }
+.rcard-label { font-size:11px; color:var(--color-text-secondary); margin-bottom:4px; }
+.rcard-val { font-size:20px; font-weight:500; }
+.rcard-delta { font-size:12px; margin-top:2px; }
+.neg { color:#A32D2D; }
+.pos { color:#3B6D11; }
+.divider { border:none; border-top:0.5px solid var(--color-border-tertiary); margin:14px 0; }
+.chart-wrap { position:relative; width:100%; height:220px; }
+</style>
+
+<h2 class="sr-only">DCF Duration 인터랙티브 계산기 — 금리 변화가 고PER vs 저PER 주식 가치에 미치는 영향</h2>
+
+<div class="ctrl-row">
+  <label>할인율 r</label>
+  <input type="range" min="3" max="10" step="0.1" value="5" id="r" style="flex:1">
+  <span id="r-out">5.0%</span>
+</div>
+<div class="ctrl-row">
+  <label>금리 충격 +Δr</label>
+  <input type="range" min="0.1" max="2.0" step="0.1" value="0.7" id="dr" style="flex:1">
+  <span id="dr-out">+0.7%p</span>
+</div>
+
+<hr class="divider">
+
+<div class="result-grid">
+  <div class="rcard">
+    <div class="rcard-label">저PER 가치주 (g=3%)</div>
+    <div class="rcard-val" id="val-low">—</div>
+    <div class="rcard-delta" id="dlt-low">—</div>
+  </div>
+  <div class="rcard">
+    <div class="rcard-label">고PER 성장주 (g=8%)</div>
+    <div class="rcard-val" id="val-mid">—</div>
+    <div class="rcard-delta" id="dlt-mid">—</div>
+  </div>
+  <div class="rcard">
+    <div class="rcard-label">무수익 테크 (g=12%)</div>
+    <div class="rcard-val" id="val-hi">—</div>
+    <div class="rcard-delta" id="dlt-hi">—</div>
+  </div>
+</div>
+
+<div class="chart-wrap">
+  <canvas id="dcfChart" role="img" aria-label="금리 충격 전후 주가 변화율 바차트">금리 변화에 따른 주가 하락률 비교</canvas>
+</div>
+
+<p style="font-size:12px;color:var(--color-text-secondary);margin-top:10px;line-height:1.6">
+  모델: 초기 현금흐름(CF₁)=100 고정, 30년 명시적 기간 + 잔존가치(Gordon Growth). r-g 스프레드가 좁을수록 잔존가치 비중↑ → Duration 길어짐 → 금리 충격 민감도↑
+</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+function dcfVal(r, g, cf1, years) {
+  let pv = 0;
+  for (let t = 1; t <= years; t++) {
+    pv += cf1 * Math.pow(1 + g, t - 1) / Math.pow(1 + r, t);
+  }
+  const tv = (cf1 * Math.pow(1 + g, years) * (1 + g)) / ((r - g) * Math.pow(1 + r, years));
+  return pv + tv;
+}
+
+let chart;
+function update() {
+  const r = parseFloat(document.getElementById('r').value) / 100;
+  const dr = parseFloat(document.getElementById('dr').value) / 100;
+  document.getElementById('r-out').textContent = (r * 100).toFixed(1) + '%';
+  document.getElementById('dr-out').textContent = '+' + (dr * 100).toFixed(1) + '%p';
+
+  const cases = [
+    { id: 'low', g: 0.03, label: '저PER (g=3%)' },
+    { id: 'mid', g: 0.08, label: '고PER (g=8%)' },
+    { id: 'hi',  g: 0.12, label: '무수익 (g=12%)' },
+  ];
+
+  const deltas = [];
+  cases.forEach(c => {
+    if (r <= c.g) {
+      document.getElementById('val-' + c.id).textContent = 'N/A';
+      document.getElementById('dlt-' + c.id).textContent = 'r ≤ g 불가';
+      document.getElementById('dlt-' + c.id).className = 'rcard-delta neg';
+      deltas.push(0);
+      return;
+    }
+    const v0 = dcfVal(r, c.g, 100, 30);
+    const v1 = dcfVal(r + dr, c.g, 100, 30);
+    const pct = ((v1 - v0) / v0) * 100;
+    document.getElementById('val-' + c.id).textContent = Math.round(v0).toLocaleString();
+    document.getElementById('dlt-' + c.id).textContent = pct.toFixed(1) + '% (r+' + (dr*100).toFixed(1) + '%p 시)';
+    document.getElementById('dlt-' + c.id).className = 'rcard-delta ' + (pct < 0 ? 'neg' : 'pos');
+    deltas.push(parseFloat(pct.toFixed(1)));
+  });
+
+  const colors = deltas.map(d => d < -20 ? '#E24B4A' : d < -10 ? '#EF9F27' : '#639922');
+  const borderColors = deltas.map(d => d < -20 ? '#A32D2D' : d < -10 ? '#BA7517' : '#3B6D11');
+
+  if (chart) {
+    chart.data.datasets[0].data = deltas;
+    chart.data.datasets[0].backgroundColor = colors;
+    chart.data.datasets[0].borderColor = borderColors;
+    chart.update();
+  } else {
+    chart = new Chart(document.getElementById('dcfChart'), {
+      type: 'bar',
+      data: {
+        labels: ['저PER 가치주 (g=3%)', '고PER 성장주 (g=8%)', '무수익 테크 (g=12%)'],
+        datasets: [{
+          label: '주가 변화율 (%)',
+          data: deltas,
+          backgroundColor: colors,
+          borderColor: borderColors,
+          borderWidth: 0.5,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ' ' + ctx.parsed.y.toFixed(1) + '%'
+            }
+          }
+        },
+        scales: {
+          y: {
+            grid: { color: 'rgba(136,135,128,0.15)' },
+            ticks: {
+              color: '#888780',
+              callback: v => v.toFixed(0) + '%'
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#888780', font: { size: 12 } }
+          }
+        }
+      }
+    });
+  }
+}
+
+document.getElementById('r').addEventListener('input', update);
+document.getElementById('dr').addEventListener('input', update);
+update();
+</script>
