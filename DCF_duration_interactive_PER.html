@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>금리 민감도와 Duration — 6/6 나스닥 급락 분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --bg2: #13161b;
+    --bg3: #1a1e25;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e6df;
+    --muted: #6b6d72;
+    --muted2: #9a9b9f;
+    --accent: #e05c3a;
+    --accent2: #f0a830;
+    --green: #4caf82;
+    --red: #e05c3a;
+    --blue: #4a90d9;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans KR', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 48px 32px 64px;
+  }
+
+  /* ── Header ── */
+  .header {
+    margin-bottom: 48px;
+    padding-bottom: 28px;
+    border-bottom: 0.5px solid var(--border2);
+  }
+  .header-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .header-sub {
+    font-size: 13px;
+    color: var(--muted2);
+    line-height: 1.6;
+  }
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    border: 0.5px solid var(--border2);
+    color: var(--muted2);
+    margin-right: 6px;
+    margin-top: 10px;
+  }
+  .pill.red { border-color: rgba(224,92,58,.4); color: #e0816a; }
+  .pill.amber { border-color: rgba(240,168,48,.4); color: #f0c060; }
+
+  /* ── Section titles ── */
+  .section { margin-bottom: 40px; }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--muted2);
+    margin-bottom: 20px;
+    line-height: 1.65;
+  }
+
+  /* ── Causal chain ── */
+  .chain {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .chain-step {
+    display: flex;
+    gap: 0;
+    align-items: stretch;
+  }
+  .chain-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    width: 28px;
+    flex-shrink: 0;
+    padding-top: 14px;
+  }
+  .chain-line-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 2px;
+    flex-shrink: 0;
+    margin-right: 16px;
+  }
+  .chain-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 18px;
+  }
+  .chain-vline {
+    width: 1px;
+    flex: 1;
+    min-height: 24px;
+    background: var(--border2);
+    margin-top: 4px;
+  }
+  .chain-last .chain-vline { display: none; }
+  .chain-body {
+    flex: 1;
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+  }
+  .chain-body:hover { border-color: var(--border2); }
+  .chain-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .chain-detail {
+    font-size: 12.5px;
+    color: var(--muted2);
+    line-height: 1.6;
+  }
+  .chain-data {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent2);
+    margin-top: 6px;
+  }
+
+  /* color dots */
+  .dot-gray { background: var(--muted); }
+  .dot-amber { background: var(--accent2); }
+  .dot-red { background: var(--red); }
+  .dot-green { background: var(--green); }
+
+  /* ── Duration comparison table ── */
+  .dur-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .dur-card {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .dur-card.card-green { border-color: rgba(76,175,130,.3); }
+  .dur-card.card-amber { border-color: rgba(240,168,48,.3); }
+  .dur-card.card-red { border-color: rgba(224,92,58,.35); }
+  .dur-type {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .dur-type.green { color: var(--green); }
+  .dur-type.amber { color: var(--accent2); }
+  .dur-type.red { color: var(--red); }
+  .dur-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .dur-desc { font-size: 12px; color: var(--muted2); line-height: 1.6; margin-bottom: 8px; }
+  .dur-ex {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .dur-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+  .dur-badge.green { background: rgba(76,175,130,.12); color: var(--green); }
+  .dur-badge.amber { background: rgba(240,168,48,.12); color: var(--accent2); }
+  .dur-badge.red { background: rgba(224,92,58,.12); color: #e8806a; }
+
+  /* ── Interactive calculator ── */
+  .calc-box {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-top: 16px;
+  }
+  .ctrl {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .ctrl-label {
+    font-size: 12px;
+    color: var(--muted2);
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent2);
+    cursor: pointer;
+  }
+  .ctrl-val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent2);
+    min-width: 52px;
+    text-align: right;
+  }
+  .result-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+  }
+  .res-card {
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .res-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .res-val { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text); }
+  .res-delta { font-family: var(--mono); font-size: 12px; margin-top: 4px; }
+  .chart-container { position: relative; width: 100%; height: 200px; margin-top: 4px; }
+
+  /* ── Evidence strip ── */
+  .evidence {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-top: 16px;
+  }
+  .ev-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .ev-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .ev-name { font-size: 13px; color: var(--text); }
+  .ev-tag { font-size: 11px; color: var(--muted); margin-left: 8px; }
+  .ev-pct {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .ev-bar-wrap { flex: 1; margin: 0 16px; height: 4px; background: var(--border); border-radius: 2px; }
+  .ev-bar { height: 4px; border-radius: 2px; }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 0.5px solid var(--border); margin: 32px 0; }
+
+  /* ── Math callout ── */
+  .math-box {
+    background: var(--bg3);
+    border-left: 2px solid var(--accent2);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted2);
+    line-height: 1.8;
+  }
+  .math-box em { color: var(--accent2); font-style: normal; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 0.5px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 28px 16px 48px; }
+    .dur-grid, .result-row { grid-template-columns: 1fr; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-tag">Market Analysis · 2026.06.06</div>
+    <h1>금리 민감도(Duration)가<br>나스닥 급락을 어떻게 설명하나</h1>
+    <div class="header-sub">
+      5월 고용 서프라이즈 → 국채수익률 급등 → DCF 할인율 상승 → 高PER 성장주 집중 타격.<br>
+      왜 같은 날 DOW는 -1.4%인데 MRVL은 -16.7%였는지를 Duration 개념으로 풀어냅니다.
+    </div>
+    <div>
+      <span class="pill">나스닥 -4.18%</span>
+      <span class="pill red">MRVL -16.7%</span>
+      <span class="pill red">MU -13.3%</span>
+      <span class="pill amber">5월 고용 +17.2만 (예상의 2배)</span>
+    </div>
+  </div>
+
+  <!-- SECTION 1: 인과 사슬 -->
+  <div class="section">
+    <div class="section-label">Step 01</div>
+    <div class="section-title">촉매 → 주가 타격까지 5단계 인과 사슬</div>
+    <div class="section-desc">각 단계가 어떻게 연결되는지 따라가면 "왜 하필 반도체·성장주인가"가 명확해집니다.</div>
+
+    <div class="chain">
+      <div class="chain-step">
+        <div class="chain-num">01</div>
+        <div class="chain-line-wrap">
+          <div class="chain-dot dot-gray"></div>
+          <div class="chain-vline"></div>
+        </div>
+        <div class="chain-body">
+          <div class="chain-title">5월 비농업 고용: 예상의 2배 서프라이즈</div>
+          <div class="chain-detail">시장 컨센서스 +8만 → 실제 +17.2만. 월드컵 준비 레저·숙박 집중 고용으로 해석됐지만, "노동시장이 아직 뜨겁다"는 신호로 읽힘.</div>
+          <div class="chain-data">실제: +172,000명 / 예상: +80,000명</div>
+        </div>
+      </div>
+
+      <div class="chain-step">
+        <div class="chain-num">02</div>
+        <div class="chain-line-wrap">
+          <div class="chain-dot dot-amber"></div>
+          <div class="chain-vline"></div>
+        </div>
+        <div class="chain-body">
+          <div class="chain-title">Fed 금리인하 기대 소멸</div>
+          <div class="chain-detail">Fed 인하 조건 = "물가 안정 + 노동시장 냉각". 고용 서프라이즈는 두 번째 조건이 충족되지 않음을 확인. 연내 인하 횟수 기대가 급격히 후퇴.</div>
+          <div class="chain-data">금리선물: 연내 인하 기대 ↓↓</div>
+        </div>
+      </div>
+
+      <div class="chain-step">
+        <div class="chain-num">03</div>
+        <div class="chain-line-wrap">
+          <div class="chain-dot dot-amber"></div>
+          <div class="chain-vline"></div>
+        </div>
+        <div class="chain-body">
+          <div class="chain-title">10년물 국채수익률 급등</div>
+          <div class="chain-detail">"금리인하 없다" 인식 → 채권 매도 → 수익률 급등. 이게 단순한 채권 문제가 아닌 이유: 국채수익률은 모든 자산의 할인율(r) 기준선.</div>
+          <div class="chain-data">10Y Treasury yield 급등 → 무위험수익률(rf) 상승</div>
+        </div>
+      </div>
+
+      <div class="chain-step">
+        <div class="chain-num">04</div>
+        <div class="chain-line-wrap">
+          <div class="chain-dot dot-red"></div>
+          <div class="chain-vline"></div>
+        </div>
+        <div class="chain-body">
+          <div class="chain-title">DCF 할인율(r) 상승 → 현재가치 감소</div>
+          <div class="chain-detail">주가 = 미래 현금흐름의 현재가치 합산. r이 오르면 분모가 커져 주가가 낮아짐. 핵심은 r이 같은 폭으로 올라도 종목마다 타격이 다르다는 것 — 이게 Duration 개념.</div>
+        </div>
+      </div>
+
+      <div class="chain-step chain-last">
+        <div class="chain-num">05</div>
+        <div class="chain-line-wrap">
+          <div class="chain-dot dot-red"></div>
+          <div class="chain-vline"></div>
+        </div>
+        <div class="chain-body">
+          <div class="chain-title">高PER 성장주 집중 타격 (Duration 효과)</div>
+          <div class="chain-detail">현금흐름이 먼 미래에 집중된 종목일수록 할인율 상승의 타격이 기하급수적으로 커짐. MRVL, MU처럼 "AI 수요 스토리 = 10년 후 수익" 구조가 가장 크게 빠짐.</div>
+          <div class="chain-data">MRVL -16.7% / MU -13.3% / AVGO -7.9% / NVDA -6.2%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SECTION 2: Duration 개념 -->
+  <div class="section">
+    <div class="section-label">Step 02</div>
+    <div class="section-title">Duration이란 무엇인가</div>
+    <div class="section-desc">채권에서 빌려온 개념. "투자금 회수까지 걸리는 평균 시간". 30년 만기 채권이 3년 만기보다 금리에 훨씬 민감한 것과 같은 원리가 주식에도 적용됩니다.</div>
+
+    <div class="math-box">
+      주가 &nbsp;= &nbsp;<em>CF₁</em>/(1+r)¹ &nbsp;+ &nbsp;<em>CF₂</em>/(1+r)² &nbsp;+ &nbsp;<em>CF₃</em>/(1+r)³ &nbsp;+ &nbsp;... &nbsp;+ &nbsp;<em>TV</em>/(1+r)ⁿ<br><br>
+      r ↑ → 분모 ↑ → PV ↓<br>
+      <em>현금흐름이 미래로 멀수록</em> (1+r)ⁿ 의 n이 커져 → 타격이 기하급수적으로 확대
+    </div>
+
+    <div class="dur-grid">
+      <div class="dur-card card-green">
+        <div class="dur-type green">Short Duration</div>
+        <div class="dur-name">저PER 가치주</div>
+        <div class="dur-desc">현금흐름의 대부분이 가까운 5~10년 안에 들어옴. 할인율 충격 흡수 가능.</div>
+        <div class="dur-ex">JPM, WMT, UNH</div>
+        <div><span class="dur-badge green">금리 충격 ↓</span></div>
+      </div>
+      <div class="dur-card card-amber">
+        <div class="dur-type amber">Long Duration</div>
+        <div class="dur-name">고PER 성장주</div>
+        <div class="dur-desc">현금흐름 대부분이 10~20년 후. PER이 높은 이유 자체가 미래 수익에 대한 프리미엄이므로 Duration이 길다.</div>
+        <div class="dur-ex">NVDA, AVGO, META</div>
+        <div><span class="dur-badge amber">금리 충격 ↑↑</span></div>
+      </div>
+      <div class="dur-card card-red">
+        <div class="dur-type red">Ultra Duration</div>
+        <div class="dur-name">무수익 성장주</div>
+        <div class="dur-desc">아직 적자 또는 이익이 매우 적음. 모든 현금흐름이 불확실한 먼 미래에. Duration이 이론적으로 무한대에 가까움.</div>
+        <div class="dur-ex">MRVL, MU (AI 내러티브)</div>
+        <div><span class="dur-badge red">금리 충격 극대</span></div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SECTION 3: Interactive Calculator -->
+  <div class="section">
+    <div class="section-label">Step 03</div>
+    <div class="section-title">DCF Duration 계산기 — 직접 확인</div>
+    <div class="section-desc">할인율(r)과 금리 충격(Δr)을 조절하면, 성장률(g)이 다른 세 종목 유형의 주가 변화율이 실시간으로 바뀝니다.</div>
+
+    <div class="calc-box">
+      <div class="ctrl">
+        <span class="ctrl-label">기준 할인율 r</span>
+        <input type="range" id="r" min="3" max="10" step="0.1" value="5">
+        <span class="ctrl-val" id="r-out">5.0%</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl-label">금리 충격 +Δr</span>
+        <input type="range" id="dr" min="0.1" max="2.0" step="0.1" value="0.7">
+        <span class="ctrl-val" id="dr-out">+0.7%p</span>
+      </div>
+
+      <div class="result-row">
+        <div class="res-card">
+          <div class="res-label">저PER 가치주 (g=3%)</div>
+          <div class="res-val" id="val-low">—</div>
+          <div class="res-delta" id="dlt-low">—</div>
+        </div>
+        <div class="res-card">
+          <div class="res-label">고PER 성장주 (g=8%)</div>
+          <div class="res-val" id="val-mid">—</div>
+          <div class="res-delta" id="dlt-mid">—</div>
+        </div>
+        <div class="res-card">
+          <div class="res-label">무수익 테크 (g=12%)</div>
+          <div class="res-val" id="val-hi">—</div>
+          <div class="res-delta" id="dlt-hi">—</div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="dcfChart" role="img" aria-label="금리 충격 전후 주가 변화율 바차트">성장률별 주가 변화율 비교</canvas>
+      </div>
+
+      <p style="font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.6;font-family:var(--mono)">
+        모델: 초기 CF₁=100 고정, 30년 명시적 기간 + Gordon Growth 잔존가치(TV).<br>
+        r-g 스프레드가 좁을수록 TV 비중↑ → Duration↑ → 금리 충격 민감도 기하급수 증가.
+      </p>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SECTION 4: Evidence -->
+  <div class="section">
+    <div class="section-label">Step 04</div>
+    <div class="section-title">실제 당일 데이터로 검증 (2026.06.06)</div>
+    <div class="section-desc">Duration 이론이 맞다면 낙폭이 "현금흐름의 시간적 거리" 순서와 일치해야 합니다. 실제 데이터를 확인합니다.</div>
+
+    <div class="evidence">
+      <div class="ev-row">
+        <span class="ev-name">DOW Jones <span class="ev-tag">금융·산업·헬스케어 (저PER)</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:14%;background:#4caf82;"></div></div>
+        <span class="ev-pct" style="color:#4caf82">-1.4%</span>
+      </div>
+      <div class="ev-row">
+        <span class="ev-name">S&P 500 <span class="ev-tag">혼합</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:26%;background:#8ec97a;"></div></div>
+        <span class="ev-pct" style="color:#8ec97a">-2.6%</span>
+      </div>
+      <div class="ev-row">
+        <span class="ev-name">Nasdaq <span class="ev-tag">고PER 성장주 중심</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:42%;background:var(--accent2);"></div></div>
+        <span class="ev-pct" style="color:var(--accent2)">-4.2%</span>
+      </div>
+      <div class="ev-row">
+        <span class="ev-name">NVDA <span class="ev-tag">반도체, 고PER</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:62%;background:#e07050;"></div></div>
+        <span class="ev-pct" style="color:#e07050">-6.2%</span>
+      </div>
+      <div class="ev-row">
+        <span class="ev-name">AVGO Broadcom <span class="ev-tag">직접 촉매</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:79%;background:#e06040;"></div></div>
+        <span class="ev-pct" style="color:#e06040">-7.9%</span>
+      </div>
+      <div class="ev-row">
+        <span class="ev-name">MU Micron <span class="ev-tag">AI 메모리, Ultra Duration</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:92%;background:var(--red);"></div></div>
+        <span class="ev-pct" style="color:var(--red)">-13.3%</span>
+      </div>
+      <div class="ev-row">
+        <span class="ev-name">MRVL Marvell <span class="ev-tag">AI 커스텀칩, Ultra Duration</span></span>
+        <div class="ev-bar-wrap"><div class="ev-bar" style="width:100%;background:#cc3c28;"></div></div>
+        <span class="ev-pct" style="color:#cc3c28">-16.7%</span>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6">
+      낙폭 순서 = Duration 순서와 정확히 일치. 동시에 UNH +5%, JPM +3%, LLY +4% 등 저Duration 종목들은 오히려 상승 — 전형적인 섹터 로테이션 패턴.
+    </p>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    duration_analysis_nasdaq_20260606 · 분석: Claude (Anthropic) · 데이터: CNBC, TradingEconomics, AP
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  function dcfVal(r, g, cf1, years) {
+    if (r <= g) return null;
+    let pv = 0;
+    for (let t = 1; t <= years; t++) {
+      pv += cf1 * Math.pow(1 + g, t - 1) / Math.pow(1 + r, t);
+    }
+    const tv = (cf1 * Math.pow(1 + g, years) * (1 + g)) / ((r - g) * Math.pow(1 + r, years));
+    return pv + tv;
+  }
+
+  let chart;
+  function update() {
+    const r  = parseFloat(document.getElementById('r').value) / 100;
+    const dr = parseFloat(document.getElementById('dr').value) / 100;
+    document.getElementById('r-out').textContent  = (r  * 100).toFixed(1) + '%';
+    document.getElementById('dr-out').textContent = '+' + (dr * 100).toFixed(1) + '%p';
+
+    const cases = [
+      { id: 'low', g: 0.03 },
+      { id: 'mid', g: 0.08 },
+      { id: 'hi',  g: 0.12 },
+    ];
+
+    const deltas = [];
+    cases.forEach(c => {
+      const v0 = dcfVal(r, c.g, 100, 30);
+      const v1 = dcfVal(r + dr, c.g, 100, 30);
+      if (!v0 || !v1) {
+        document.getElementById('val-' + c.id).textContent = 'N/A';
+        document.getElementById('dlt-' + c.id).textContent = 'r ≤ g';
+        document.getElementById('dlt-' + c.id).style.color = '#e05c3a';
+        deltas.push(0);
+        return;
+      }
+      const pct = ((v1 - v0) / v0) * 100;
+      document.getElementById('val-' + c.id).textContent = Math.round(v0).toLocaleString();
+      document.getElementById('dlt-' + c.id).textContent = pct.toFixed(1) + '%';
+      document.getElementById('dlt-' + c.id).style.color = pct < 0 ? '#e05c3a' : '#4caf82';
+      deltas.push(parseFloat(pct.toFixed(1)));
+    });
+
+    const barColors = deltas.map(d =>
+      d < -25 ? '#cc3c28' : d < -15 ? '#e05c3a' : d < -8 ? '#f0a830' : '#4caf82'
+    );
+
+    if (chart) {
+      chart.data.datasets[0].data = deltas;
+      chart.data.datasets[0].backgroundColor = barColors;
+      chart.update();
+    } else {
+      chart = new Chart(document.getElementById('dcfChart'), {
+        type: 'bar',
+        data: {
+          labels: ['저PER 가치주 (g=3%)', '고PER 성장주 (g=8%)', '무수익 테크 (g=12%)'],
+          datasets: [{
+            label: '주가 변화율 (%)',
+            data: deltas,
+            backgroundColor: barColors,
+            borderWidth: 0,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1a1e25',
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 0.5,
+              titleColor: '#9a9b9f',
+              bodyColor: '#e8e6df',
+              callbacks: { label: ctx => ' ' + ctx.parsed.y.toFixed(1) + '%' }
+            }
+          },
+          scales: {
+            y: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#6b6d72', font: { family: "'IBM Plex Mono', monospace", size: 11 }, callback: v => v.toFixed(0) + '%' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#6b6d72', font: { family: "'IBM Plex Sans KR', sans-serif", size: 11 } }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  document.getElementById('r').addEventListener('input', update);
+  document.getElementById('dr').addEventListener('input', update);
+  update();
+</script>
+</body>
+</html>
